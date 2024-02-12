@@ -9,6 +9,7 @@ import { DataService } from '../data.service';
   templateUrl: './homepage.component.html',
   styleUrls: ['./homepage.component.scss']
 })
+
 export class HomepageComponent implements OnInit {
 
   public dataSource: {
@@ -39,32 +40,51 @@ export class HomepageComponent implements OnInit {
     };
 
   constructor(
-    private http: HttpClient,
     private dataService: DataService
   ) { }
 
+  // reading the data from the from a local variable
+  // ngOnInit(): void {
+  //   this.http.get('http://localhost:3000/budget').subscribe((res: any) => {
+  //     for (var i = 0; i < res.myBudget.length; i++) {
+  //       this.dataSource.datasets[0].data[i] = res.myBudget[i].budget;
+  //       this.dataSource.labels[i] = res.myBudget[i].title;
+  //     }
+  //     this.createChart();
+
+  //     if (this.dataService.isBudgetDataEmpty()) {
+  //       this.dataService.getBudgetData().subscribe((data: any) => {
+  //         this.createD3JSchart(data.myBudget);
+  //         this.dataService.setBudgetData(data.myBudget);
+  //       });
+  //     } else {
+  //       const availableData = this.dataService.getStoredBudgetData();
+  //       this.createD3JSchart(availableData);
+  //     }
+
+  //   });
+  // }
+
+  // reading the data from the DataService
   ngOnInit(): void {
-    this.http.get('http://localhost:3000/budget').subscribe((res: any) => {
-      for (var i = 0; i < res.myBudget.length; i++) {
-        this.dataSource.datasets[0].data[i] = res.myBudget[i].budget;
-        this.dataSource.labels[i] = res.myBudget[i].title;
-      }
+    if (this.dataService.isBudgetDataEmpty()) {
+      this.dataService.getBudgetData().subscribe((data: any) => {
+        const myBudget: BudgetEntry[] = data.myBudget;
+        this.dataSource.datasets[0].data = myBudget.map((entry: BudgetEntry) => entry.budget);
+        this.dataSource.labels = myBudget.map((entry: BudgetEntry) => entry.title);
+        this.createChart();
+        this.createD3JSchart(myBudget);
+        this.dataService.setBudgetData(myBudget);
+      });
+    } else {
+      const availableData = this.dataService.getStoredBudgetData();
+      this.dataSource.datasets[0].data = availableData.map((entry: BudgetEntry) => entry.budget);
+      this.dataSource.labels = availableData.map((entry: BudgetEntry) => entry.title);
       this.createChart();
-
-      if (this.dataService.isBudgetDataEmpty()) {
-        this.dataService.getBudgetData().subscribe((data: any) => {
-          this.createD3JSchart(data.myBudget);
-          this.dataService.setBudgetData(data.myBudget);
-        });
-      } else {
-        const availableData = this.dataService.getStoredBudgetData();
-        this.createD3JSchart(availableData);
-      }
-
-    });
-
-
+      this.createD3JSchart(availableData);
+    }
   }
+
   createChart() {
     var ctx = document.getElementById("myChart") as HTMLCanvasElement;
     var availableChart = Chart.getChart(ctx);
@@ -83,19 +103,19 @@ export class HomepageComponent implements OnInit {
 
     const budgetValues = data.map((d: any) => d.budget);
     const width = 700;
-    const height = 500;
-    const radius = Math.min(width, height) / 2;
+    const height = 600;
+    const radius = Math.min(width, height) / 2 - 10;
 
     const svg = d3.select('#d3Chart')
       .append('svg')
       .attr('width', width)
-      .attr('height', '700')
+      .attr('height', height)
       .append('g')
       .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
     const color = d3.scaleOrdinal<string, string>()
       .domain(data.map((d: any) => d.title))
-      .range(["#3498db", "#2ecc71", "#e74c3c", "#f39c12", "#9b59b6", "#1abc9c", "#f1c40f", "#34495e"]);
+      .range(["#3498db", "#2ecc71", "#f39c12", "#e74c3c", "#9b59b6", "#1abc9c", "#f1c40f", "#34495e"]);
 
     const pie = d3.pie<number>()
       .sort(null)
@@ -133,7 +153,8 @@ export class HomepageComponent implements OnInit {
       .attr('dy', '.35em')
       .text(function (d: any) {
         return d.data.title;
-      });
+      })
+      .style('font-size', '1.1em');
 
     function midAngle(d: { startAngle: number; endAngle: number; }) {
       return d.startAngle + (d.endAngle - d.startAngle) / 2;
@@ -142,7 +163,8 @@ export class HomepageComponent implements OnInit {
     text.transition().duration(1000)
       .attr('transform', function (d: any) {
         var pos = outerArc.centroid(d);
-        pos[0] = radius * 1.002 * (midAngle(d) < Math.PI ? 1 : -1);
+        pos[0] = radius * 1.02 * (midAngle(d) < Math.PI ? 1 : -1);
+        pos[1] = pos[1] + 3.5;
         return `translate(${pos[0]},${pos[1]})`;
       })
       .style('text-anchor', function (d: any) {
@@ -157,10 +179,15 @@ export class HomepageComponent implements OnInit {
     polyline.transition().duration(1000)
       .attr('points', function (d: any) {
         var pos = outerArc.centroid(d);
-        pos[0] = radius * 0.5 * (midAngle(d) < Math.PI ? 1 : -1);
+        pos[0] = radius * 1 * (midAngle(d) < Math.PI ? 1 : -1);
         return `${arc.centroid(d)},${outerArc.centroid(d)},${pos[0]},${pos[1]}`;
       });
 
   }
 
+}
+
+interface BudgetEntry {
+  title: string;
+  budget: number;
 }
